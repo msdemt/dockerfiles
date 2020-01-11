@@ -1,0 +1,93 @@
+FROM debian:10-slim
+
+LABEL maintainer="276516848@qq.com"
+
+ARG TZ="Asia/Shanghai"
+ARG JAVA_VERSION=8u231
+ARG JCE_POLICY_VERSION=8
+ARG TINI_VERSION=v0.18.0
+ARG TINI_DOWNLOAD_URL=https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini-amd64
+ARG JDK_DOWNLOAD_URL=https://e344ag.bn.files.1drv.com/y4mYl7IJbjcZmV4c2IpEkwBFmMqzaKd29Mv4g9Vq_-qKWFbp2RZPjvdPwXqk09z26mGzDtYk-7EamiZ-BfDHw1RxetElxp-t9ZYveFVBrCa7Zgbls4vx3o3SHxC1Zh9ATqBFq1ST2LP1a-IKfOE20SDK1X4lceJhWgd5JMjc4hbvCgZoDU1VIJAh98U5LOS7NhyYn6wztnEwX0LXg1UWaCbQA/jdk-8u231-linux-x64.tar.gz
+ARG JCE_DOWNLOAD_URL=https://e345ag.bn.files.1drv.com/y4mCWH6xFqKOAAlZJ2C3RiexVk1lb0ZPSldzrG4CD2ag_Amw5c3wSfItMYyuYDNDsjyuYR4KnmSAOaD0rzugbBF1N_L4WQN7GscKTk0nY2N4YWr5Z_BXupwp1Ts1WVNtlSaZPx6YoUXSlNkv2XDzvCUYSgyOLvsjK7G86heHg_d0R4ePWDtXsIuE225paIhzhk9Xw-cnZoHYlLqUTUwW7BbGA/jce_policy-8.zip
+
+RUN set -ex \
+    && apt update -y \
+    && apt install -y ca-certificates \
+    && echo deb https://mirrors.tuna.tsinghua.edu.cn/debian/ buster main contrib non-free > /etc/apt/sources.list \
+    && echo deb https://mirrors.tuna.tsinghua.edu.cn/debian/ buster-updates main contrib non-free >> /etc/apt/sources.list \
+    && echo deb https://mirrors.tuna.tsinghua.edu.cn/debian/ buster-backports main contrib non-free >> /etc/apt/sources.list \
+    && echo deb https://mirrors.tuna.tsinghua.edu.cn/debian-security buster/updates main contrib non-free >> /etc/apt/sources.list \
+    && apt update -y && apt upgrade -y \
+    && apt install -y locales wget unzip iputils-ping \
+    && wget ${TINI_DOWNLOAD_URL} > /usr/bin/tini \
+    && chmod +x /usr/bin/tini \
+    && locale-gen --purge zh_CN.UTF-8 \
+    && localedef -i zh_CN -c -f UTF-8 zh_CN.UTF-8 \
+    && echo 'LANG="zh_CN.UTF-8"' > /etc/default/locale \
+    && echo 'LANGUAGE="zh_CN.UTF-8"' >> /etc/default/locale \
+    && ln -sf /usr/share/zoneinfo/${TZ} /etc/localtime \
+    && echo "${TZ}" > /etc/timezone \
+    && cd /usr/share/i18n/charmaps \
+    && ls|egrep -v 'UTF-8.gz|GB18030.gz|GBK.gz'|xargs rm -rf \
+    && cd /usr/share/i18n/locales \
+    && ls|egrep -v 'zh_CN|en_US'|xargs rm -rf \
+    && echo 'en_US.UTF-8 UTF-8\nzh_CN.UTF-8 UTF-8\nzh_CN.GB18030 GB18030\nzh_CN.GBK GBK\nzh_CN GB2312' > /usr/share/i18n/SUPPORTED
+
+ENV LC_ALL=zh_CN.UTF-8 \
+    LANG=zh_CN.UTF-8 \
+    LANGUAGE=zh_CN:zh \
+    JAVA_HOME=/usr/local/jdk
+
+RUN set -ex \
+    && mkdir -p ${JAVA_HOME} \
+    && wget ${JDK_DOWNLOAD_URL} -O /tmp/jdk.tar.gz \
+    && wget ${JCE_DOWNLOAD_URL} -O /tmp/jce.zip \
+    && tar -xzf /tmp/jdk.tar.gz --strip-components=1 -C ${JAVA_HOME} \
+    && ln -s ${JAVA_HOME}/bin/* /usr/bin/ \
+    && unzip -jo -d ${JAVA_HOME}/jre/lib/security /tmp/jce.zip \ 
+    && apt remove -y wget unzip \
+    && apt autoremove -y \
+    && rm -rf   /var/lib/apt/lists/* \
+                ${JAVA_HOME}/*src.zip \
+                ${JAVA_HOME}/bin/jmc \
+                ${JAVA_HOME}/bin/jvisualvm \
+                ${JAVA_HOME}/bin/*javafx* \
+                ${JAVA_HOME}/lib/missioncontrol \
+                ${JAVA_HOME}/lib/visualvm \
+                ${JAVA_HOME}/lib/*javafx* \
+                ${JAVA_HOME}/jre/plugin \
+                ${JAVA_HOME}/jre/bin/javaws \
+                ${JAVA_HOME}/jre/bin/jjs \
+                ${JAVA_HOME}/jre/bin/orbd \
+                ${JAVA_HOME}/jre/bin/pack200 \
+                ${JAVA_HOME}/jre/bin/policytool \
+                ${JAVA_HOME}/jre/bin/rmid \
+                ${JAVA_HOME}/jre/bin/rmiregistry \
+                ${JAVA_HOME}/jre/bin/servertool \
+                ${JAVA_HOME}/jre/bin/tnameserv \
+                ${JAVA_HOME}/jre/bin/unpack200 \
+                ${JAVA_HOME}/jre/bin/ControlPanel \
+                ${JAVA_HOME}/jre/bin/jcontrol \
+                ${JAVA_HOME}/jre/lib/javaws.jar \
+                ${JAVA_HOME}/jre/lib/deploy* \
+                ${JAVA_HOME}/jre/lib/desktop \
+                ${JAVA_HOME}/jre/lib/*javafx* \
+                ${JAVA_HOME}/jre/lib/*jfx* \
+                ${JAVA_HOME}/jre/lib/amd64/libdecora_sse.so \
+                ${JAVA_HOME}/jre/lib/amd64/libprism_*.so \
+                ${JAVA_HOME}/jre/lib/amd64/libfxplugins.so \
+                ${JAVA_HOME}/jre/lib/amd64/libglass.so \
+                ${JAVA_HOME}/jre/lib/amd64/libgstreamer-lite.so \
+                ${JAVA_HOME}/jre/lib/amd64/libjavafx*.so \
+                ${JAVA_HOME}/jre/lib/amd64/libjfx*.so \
+                ${JAVA_HOME}/jre/lib/ext/jfxrt.jar \
+                ${JAVA_HOME}/jre/lib/ext/nashorn.jar \
+                ${JAVA_HOME}/jre/lib/oblique-fonts \
+                ${JAVA_HOME}/jre/lib/plugin.jar \
+                /tmp/*
+
+WORKDIR /home
+
+ENTRYPOINT ["tini","--"]
+
+CMD ["bash"]

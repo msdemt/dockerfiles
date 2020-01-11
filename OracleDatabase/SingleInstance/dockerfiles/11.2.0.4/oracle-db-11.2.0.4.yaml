@@ -1,0 +1,109 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: oracle
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: oracle-db-data
+  namespace: oracle
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:  
+    requests:
+      storage: 30Gi
+
+---
+# headless service 用于使用hostname访问pod
+kind: Service
+apiVersion: v1
+metadata:
+  name: oracle-db-headless
+  namespace: oracle
+spec:
+  clusterIP: None
+  # publishNotReadyAddresses, when set to true, indicates that DNS implementations must publish the notReadyAddresses of subsets for the Endpoints associated with the Service. The default value is false. The primary use case for setting this field is to use a StatefulSet's Headless Service to propagate SRV records for its Pods without respect to their readiness for purpose of peer discovery. This field will replace the service.alpha.kubernetes.io/tolerate-unready-endpoints when that annotation is deprecated and all clients have been converted to use this field.
+  # 由于使用DNS访问Pod需Pod和Headless service启动之后才能访问，publishNotReadyAddresses设置成true，防止readinessProbe在服务没启动时找不到DNS
+  publishNotReadyAddresses: true 
+  ports: 
+   - name: listener
+     port: 1521
+   - name: http
+     port: 8080
+  selector:
+    app: oracle-db
+---
+# 用于暴露dashboard到外网
+kind: Service
+apiVersion: v1
+metadata:
+  namespace: oracle
+  name: oracle-db-service
+spec:
+  type: NodePort
+  ports:
+   - name: listener
+     protocol: TCP
+     port: 1521
+     targetPort: 1521
+     nodePort: 1521
+   - name: http
+     protocol: TCP
+     port: 8080
+     targetPort: 8080
+     nodePort: 8888
+  selector:
+    app: oracle-db
+
+---
+# 使用apps/v1版本代替apps/v1beta
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: oracle-db
+  namespace: oracle
+spec:
+  serviceName: oracle-db-headless   # 必须与headless service的name相同，用于hostname传播访问pod
+  selector:
+    matchLabels:
+      app: oracle-db # 在apps/v1中，需与 .spec.template.metadata.label 相同，用于hostname传播访问pod，而在apps/v1beta中无需这样做
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: oracle-db  # 在apps/v1中，需与 .spec.selector.matchLabels 相同
+    spec:
+      containers:        
+      - name: oracle-db
+        image: oracle/database:11.2.0.4-ee
+        resources:
+          limits:
+            cpu: 4
+            memory: 8Gi
+          requests:
+            cpu: 2
+            memory: 2Gi
+        volumeMounts:
+          - name: db-data
+            mountPath: /u01/app/oracle/oradata
+        ports:
+          - name: listener
+            protocol: TCP
+            containerPort: 1521
+          - name: http
+            protocol: TCP
+            containerPort: 8080
+        imagePullPolicy: IfNotPresent
+        env:
+          - name: ORACLE_SID
+            value: mysid
+          - name: ORACLE_PWD
+            value: mypassword
+          - name: ORACLE_CHARACTERSET
+            value: UTF-8
+      volumes:
+        - name: db-data
+          persistentVolumeClaim:
+            claimName: oracle-db-data

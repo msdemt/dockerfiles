@@ -1,0 +1,6 @@
+#!/usr/bin/env sh
+
+export JDK_DOWNLOAD_URL=https://e344ag.bn.files.1drv.com/y4mr8t_vEep0KMY9omaAgfuxIkL__QJ0K9BftIywFOfY54_nr3mUZpKUIS3d4hybk40K4aQEqyCqVt_Aj9ct3hi_2ywljhTwsJ3TCVAOIdyify-sYw-nK6HhyvrTVlKshmJMA_PyxcFxaCa4UoUF3Y9mF8IfnxdazBgJBo8O_cn-D4IN9i4woDI5UtUvKO72mc8qkzqut0sDoMQ__7O_HUXrw/jdk-8u231-linux-x64.tar.gz
+
+docker build --build-arg JDK_DOWNLOAD_URL="${JDK_DOWNLOAD_URL}" -t $IMAGE_NAME .
+

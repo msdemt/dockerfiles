@@ -1,0 +1,19 @@
+version: '2'
+services:
+  database:
+    image: oracle/database:11.2.0.4-ee
+    container_name: db-name
+    hostname: db-name
+    environment:
+      - TZ=Asia/Shanghai
+      - ORACLE_TOTALMEMORY=4096
+      - ORACLE_SID=ORCL
+      - ORACLE_PWD=test@123
+      - ORACLE_CHARACTERSET=ZHS16GBK
+    volumes:
+      - /path/oradata:/u01/app/oracle/oradata 
+      - /path/fast_recovery_area:/u01/app/oracle/fast_recovery_area
+      - /path/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
+    ports:
+      - 1521:1521
+      - 28080:8080
